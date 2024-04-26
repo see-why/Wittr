@@ -12,6 +12,10 @@ Dependencies:
 
 * [Node.js](https://nodejs.org/en/) v0.12.7 or above
 
+* [Python](https://www.python.org/) v2.7.18
+
+If you have any trouble installing the python version, you can use [pyenv](https://github.com/pyenv/pyenv).
+
 Then check out the project and run:
 
 ```sh
