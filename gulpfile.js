@@ -1,6 +1,6 @@
 var gulp = require('gulp');
 var plugins = require('gulp-load-plugins')();
-var runSequence = require('run-sequence');
+var runSequence = require('gulp4-run-sequence');
 var del = require('del');
 var assign = require('lodash/object/assign');
 var browserify = require('browserify');
@@ -119,10 +119,10 @@ gulp.task('templates:server', function () {
 });
 
 gulp.task('watch', function () {
-  gulp.watch(['public/scss/**/*.scss'], ['css']);
-  gulp.watch(['templates/*.hbs'], ['templates:server']);
-  gulp.watch(['server/**/*.js'], ['js:server']);
-  gulp.watch(['public/imgs/**/*', 'public/avatars/**/*', 'server/*.txt', 'public/*.json'], ['copy']);
+  gulp.watch(['public/scss/**/*.scss'], gulp.series('css'));
+  gulp.watch(['templates/*.hbs'], gulp.series('templates:server'));
+  gulp.watch(['server/**/*.js'], gulp.series('js:server'));
+  gulp.watch(['public/imgs/**/*', 'public/avatars/**/*', 'server/*.txt', 'public/*.json'], gulp.series('copy'));
 
   Object.keys(jsBundles).forEach(function(key) {
     var b = jsBundles[key];
