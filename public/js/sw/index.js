@@ -2,8 +2,6 @@ function allStaticCacheNames() {
  return ["wittr-static-v6", "wittr-content-imgs"];
 }
 
-// selfish runt
-
 function servePhoto(request) {
   var storageUrl = request.url.replace(/-\d+px\.jpg$/, '');
   return caches.open(allStaticCacheNames()[1]).then(function(cache){
@@ -14,6 +12,20 @@ function servePhoto(request) {
         cache.put(storageUrl, networkResponse.clone());
         return networkResponse;
       });
+    });
+  });
+}
+
+function serveAvatar(request){
+  var storageUrl = request.url.replace(/-\dx\.jpg$/, '');
+  return caches.open(allStaticCacheNames()[1]).then(function(cache){
+    return cache.match(storageUrl).then(function(response){
+      var networkResponse = fetch(request).then(function(networkResponse) {
+        cache.put(storageUrl, networkResponse.clone());
+        return networkResponse;   
+      });
+
+      return response || networkResponse;
     });
   });
 }
@@ -57,6 +69,11 @@ self.addEventListener("fetch", function(event){
 
     if (requestUrl.pathname.startsWith("/photos/")){
       event.respondWith(servePhoto(event.request));
+      return;
+    }
+
+    if (requestUrl.pathname.startsWith("/avatars/")){
+      event.respondWith(serveAvatar(event.request));
       return;
     }
   }
