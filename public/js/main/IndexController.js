@@ -26,6 +26,17 @@ export default function IndexController(container) {
   this._openSocket();
   this._dbPromise = openDatabase();
   this._registerServiceWorker();
+  this._cleanImageCache();
+
+  var indexController = this;
+
+  setInterval(function(){
+    indexController._cleanImageCache();
+  }, 1000 * 5 * 60);
+
+  this._showCachedMessages().then(function() {
+    indexController._openSocket();
+  });
 }
 
 IndexController.prototype._registerServiceWorker = function(){
@@ -124,6 +135,36 @@ IndexController.prototype._openSocket = function() {
   });
 };
 
+// ensure only latest images are cached
+IndexController.prototype._cleanImageCache = function() {
+  return this._dbPromise.then(function(db) {
+    var wittrsStore = db.transaction('wittrs').objectStore('wittrs');
+
+    var images = [];
+
+    return wittrsStore.getAll().then(function(messages) {
+      messages.forEach(function(message) {
+        if (message.photo) {
+          images.push(message.photo);
+        }
+          images.push(message.avatar);
+      });
+
+      return caches.open('wittr-content-imgs').then(function(cache){
+       return cache.keys().then(function(requests){
+          requests.forEach(function(request){
+            var url = new URL(request.url);
+            if(!images.includes(url.pathname)){
+              cache.delete(request);
+            }
+          });
+        });
+      });
+
+    });
+  });
+};
+
 // called when the web socket sends message data
 IndexController.prototype._onSocketMessage = function(data) {
   var messages = JSON.parse(data);
@@ -131,15 +172,38 @@ IndexController.prototype._onSocketMessage = function(data) {
   this._dbPromise.then(function(db) {
     if(!db) return;
 
-    console.log('we are here');
-
     var tx = db.transaction('wittrs', 'readwrite');
     var wittrsStore = tx.objectStore('wittrs');
 
     messages.forEach(function(message) {
       wittrsStore.put(message);
     });
+
+    var byDateIndex = wittrsStore.index('by-date');
+    byDateIndex.openCursor(null, 'prev').then(function(cursor) {
+      return cursor.advance(30);
+    }).then(function deleteRest(cursor){
+      if (!cursor) return;
+      cursor.delete();
+      return cursor.continue().then(deleteRest);
+    });
   });
 
   this._postsView.addPosts(messages);
+};
+
+// show cache messages in IndexDb
+IndexController.prototype._showCachedMessages = function() {
+  var indexController = this;
+
+  indexController._dbPromise.then(function(db) {
+    if (!db || indexController._postsView.showingPosts()) return;
+
+    var wittrsStore = db.transaction('wittrs').objectStore('wittrs');
+    var dateIndex = wittrsStore.index('by-date');
+
+    return dateIndex.getAll().then(function(messages){
+      indexController._postsView.addPosts(messages.reverse());
+    });
+  });
 };
